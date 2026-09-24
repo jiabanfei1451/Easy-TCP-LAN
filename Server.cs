@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks;
 using Godot;
 
 namespace NETDNS;
@@ -12,9 +13,13 @@ namespace NETDNS;
 public static class Server
 {
     /// <summary>
+    /// 数据流
+    /// </summary>
+    public static string Data_Stream = "";
+    /// <summary>
     /// IP
     /// </summary>
-    public static string IPs = "192.168.10.19";
+    public static string IPs = "127.0.0.1";
     /// <summary>
     /// 端口
     /// </summary>
@@ -69,6 +74,7 @@ public static class Server
         }
         finally
         {
+            Server_Stream = null;
             DEBUG.Info.Print("服务器已关闭");
         }
     }
@@ -80,7 +86,18 @@ public static class Server
         if (TCPServer != null){
             TCPServer.Stop();
             TCPServer = null;
+            foreach (TcpClient client in Online_Player)
+            {
+                if (client != null){
+                    client.Close();
+                }
+            }
+            if (Server_Stream != null){
+                Server_Stream.Close();
+                Server_Stream = null;
+            }
         }
+        Data_Stream = "";
     }
     /// <summary>
     /// 加入服务器
@@ -114,11 +131,18 @@ public static class Server
             DEBUG.Info.Print($"已成功加入游戏IP{IPs}");
             Server_Stream = Client.GetStream();
 
-            while (true){
-            byte[] Buffer = new byte[1024];
-            var s = await Server_Stream.ReadAsync(Buffer,0,Buffer.Length);
-            string str = Encoding.UTF8.GetString(Buffer,0,s);
-            DEBUG.Info.Print(str);
+            while (Server_Stream != null){
+                byte[] Buffer = new byte[1024];
+                var s = await Server_Stream.ReadAsync(Buffer,0,Buffer.Length);
+                string str = Encoding.UTF8.GetString(Buffer,0,s);
+                Data_Stream += str;
+                if( str == "")
+                {
+                    DEBUG.Info.Print("正在断开链接");
+                    break;
+                }
+                DEBUG.Info.Print("客户端已接收:",str);
+                await Task.Delay(100);
             }
         }
         catch(Exception EX)
@@ -139,6 +163,7 @@ public static class Server
             DEBUG.Info.Print("结束");
         }
         }
+        Data_Stream = "";
     }
     /// <summary>
     /// 向客户端发送信息
@@ -155,10 +180,34 @@ public static class Server
         }
     }
     /// <summary>
-    /// 向客户端发送信息
+    /// 客户端发送
     /// </summary>
     /// <param name="Text"></param>
     public static async void Player_Send_Data(String Text)
+    {
+        if (TCPServer != null)
+        {
+            DEBUG.Info.Print("当前为服务端");
+            return;
+        }
+        try
+        {
+            if (Server_Stream == null){return;}
+            Server_Stream.Write(Encoding.UTF8.GetBytes(Text));
+        }catch(Exception EX)
+        {
+            DEBUG.Info.Print(EX.Message);
+        }
+        finally
+        {
+            
+        }
+    }
+    /// <summary>
+    /// 向客户端发送信息
+    /// </summary>
+    /// <param name="Text"></param>
+    public static async void Server_Send_Data(String Text)
     {
         try{
             if (Server_Stream == null){return;}
@@ -191,12 +240,13 @@ public static class Server
         NetworkStream PlayerStream = null;
         try{
             PlayerStream = Player.GetStream();
-            while (true)
+            while (TCPServer != null)
             {
                 byte[] Buffer = new byte[1024];
                 int Len = await PlayerStream.ReadAsync(Buffer,0,Buffer.Length);
                 string str = Encoding.UTF8.GetString(Buffer,0,Len);
-                DEBUG.Info.Print(str);
+                Data_Stream += str;
+                DEBUG.Info.Print("服务端已接收:",str);
                 Currend_Data.Add(str);
             }
         }
