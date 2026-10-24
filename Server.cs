@@ -183,7 +183,7 @@ public static class Server
     /// 客户端发送
     /// </summary>
     /// <param name="Text"></param>
-    public static async void Player_Send_Data(String Text)
+    public static void Player_Send_Data(String Text)
     {
         if (TCPServer != null)
         {
