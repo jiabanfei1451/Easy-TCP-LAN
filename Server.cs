@@ -23,7 +23,7 @@ public static class Server
     /// <summary>
     /// 端口
     /// </summary>
-    public static int Port = 7777;
+    public static ushort Port = 7777;
     /// <summary>
     /// TCP服务器
     /// </summary>
@@ -52,7 +52,7 @@ public static class Server
         IPAddress iPAddress = IPAddress.Parse(IPs);
         IPEndPoint iPEnd = new IPEndPoint(iPAddress,Port);
         TcpListener Tcp_Server = new TcpListener(iPEnd);
-
+        if (!Cheak_Port()){return;}
         try
         {
             Tcp_Server.Start();
@@ -62,7 +62,7 @@ public static class Server
             {
                 TcpClient Player = await TCPServer.AcceptTcpClientAsync();
                 Server_Stream = Player.GetStream();
-                DEBUG.Info.Print("进入");
+                DEBUG.Info.Print("服务端已创建");
                 Handle_Player(Player);
                 
             }
@@ -77,6 +77,37 @@ public static class Server
             Server_Stream = null;
             DEBUG.Info.Print("服务器已关闭");
         }
+    }
+    /// <summary>
+    /// 检测端口
+    /// </summary>
+    /// <returns></returns>
+    public static bool Cheak_Port()
+    {
+        Socket socket = null;
+        bool h = false;
+        try
+        {
+            IPAddress ipa = IPAddress.Parse(IPs);
+            IPEndPoint iPEndPoint = new IPEndPoint(ipa,Port);
+            socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            socket.Connect(iPEndPoint);
+        }
+        catch(SocketException ex)
+        {
+            DEBUG.Info.Print("计算机端口检测失败 错误信息:",ex);
+            h = false;
+        }
+        finally
+        {
+            if(socket != null)
+            {
+                socket.Close();
+                socket.Dispose();
+                h = true;
+            }
+        }
+        return h;
     }
     /// <summary>
     /// 关闭服务器
@@ -166,7 +197,7 @@ public static class Server
         Data_Stream = "";
     }
     /// <summary>
-    /// 向客户端发送信息
+    /// 退出服务器
     /// </summary>
     /// <param name="Text"></param>
     public static void Exit_Server()
