@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using Godot;
 
 namespace NETDNS;
 /// <summary>
@@ -58,33 +56,44 @@ public static class Server
     /// </summary>
     public static async void Create_Server()
     {
+        if (!(TCPServer is null))
+        {
+            Console.Write("当前服务器已被创建,请使用其他端口");
+            return;
+        }
         IPAddress iPAddress = IPAddress.Parse(IPs);
         IPEndPoint iPEnd = new IPEndPoint(iPAddress,Port);
         TcpListener Tcp_Server = new TcpListener(iPEnd);
-        if (!Cheak_Port()){return;}
         try
         {
             Tcp_Server.Start();
             TCPServer = Tcp_Server;
-            
+            Console.Write("服务端已创建");
             while (true)
             {
                 TcpClient Player = await TCPServer.AcceptTcpClientAsync();
                 Server_Stream = Player.GetStream();
-                DEBUG.Info.Print("服务端已创建");
                 Handle_Player(Player);
-                
             }
             
         }
         catch(Exception EX)
         {
-            DEBUG.Info.Print(EX.Message);
+            Console.Write(EX.Message);
         }
         finally
         {
+            try{
+                Server_Stream.Close();
+            }catch(Exception EX)
+            {
+                Console.Write($"关闭时出现错误 错误信息:{EX.Message}");
+            }
+            finally
+            {
+            }
             Server_Stream = null;
-            DEBUG.Info.Print("服务器已关闭");
+            Console.Write("服务器已关闭");
         }
     }
     /// <summary>
@@ -104,8 +113,8 @@ public static class Server
         }
         catch(SocketException ex)
         {
-            DEBUG.Info.Print("计算机端口检测失败 错误信息:",ex);
-            h = false;
+            Console.Write("计算机端口检测失败 错误信息:",ex);
+            h = true;
         }
         finally
         {
@@ -113,7 +122,7 @@ public static class Server
             {
                 socket.Close();
                 socket.Dispose();
-                h = true;
+                h = false;
             }
         }
         return h;
@@ -137,6 +146,7 @@ public static class Server
                 Server_Stream = null;
             }
         }
+        Online_Player.Clear();
         Data_Stream = "";
     }
     /// <summary>
@@ -144,6 +154,11 @@ public static class Server
     /// </summary>
     public static async void Join_Server()
     {
+        if (!(Server_Stream is null))
+        {
+            Console.Write($"当前进程已连接{IPs}:{Port},请勿重复连接");
+            return;
+        }
         try
         {
             IPAddress iPAddress = IPAddress.Parse(IPs);
@@ -161,14 +176,14 @@ public static class Server
         }
         if (TCPServer != null)
         {
-            DEBUG.Info.Print("当前为服务端!");
+            Console.Write("当前为服务端!");
         }else{
         Client = new TcpClient();
-        DEBUG.Info.Print("正在加入游戏...");
+        Console.Write("正在加入游戏...");
         try
         {
             await Client.ConnectAsync(IPs,Port);
-            DEBUG.Info.Print($"已成功加入游戏IP{IPs}");
+            Console.Write($"已成功加入游戏IP{IPs}");
             Server_Stream = Client.GetStream();
 
             while (Server_Stream != null){
@@ -178,18 +193,23 @@ public static class Server
                 Data_Stream += str;
                 if( str == "")
                 {
-                    DEBUG.Info.Print("正在断开链接");
+                    Console.Write("正在断开链接");
                     break;
                 }
-                GetServer_Stream.Invoke(str);
-                DEBUG.Info.Print("客户端已接收:",str);
+                try{
+                    GetServer_Stream.Invoke(str);
+                }catch(Exception EX)
+                {
+                    Console.Write($"方法调用错误 错误信息:{EX.Message}");
+                }finally{}
+                Console.Write("客户端已接收:",str);
                 await Task.Delay(100);
             }
         }
         catch(Exception EX)
         {
-            DEBUG.Info.PrintErr(EX.Message);
-            DEBUG.Info.Print(IPs,Port);
+            Console.Write(EX.Message);
+            Console.Write(IPs,Port);
         }
         finally
         {
@@ -201,7 +221,7 @@ public static class Server
             Server_Stream.Close();
             }
             Server_Stream = null;
-            DEBUG.Info.Print("结束");
+            Console.Write("结束");
         }
         }
         Data_Stream = "";
@@ -214,10 +234,16 @@ public static class Server
     {
         if (Client != null)
         {
+            Console.Write("退出中");
+            Player_Send_Data("<<Exit>>");
             Server_Stream.Close();
             Server_Stream = null;
             Client.Close();
             Client = null;
+        }
+        else
+        {
+            Console.Write("当前没有正在连接的服务器流");
         }
     }
     /// <summary>
@@ -228,7 +254,7 @@ public static class Server
     {
         if (TCPServer != null)
         {
-            DEBUG.Info.Print("当前为服务端");
+            Console.Write("当前为服务端");
             return;
         }
         try
@@ -237,7 +263,7 @@ public static class Server
             Server_Stream.Write(Encoding.UTF8.GetBytes(Text));
         }catch(Exception EX)
         {
-            DEBUG.Info.Print(EX.Message);
+            Console.Write(EX.Message);
         }
         finally
         {
@@ -253,10 +279,10 @@ public static class Server
         try{
             if (Server_Stream == null){return;}
             if (Online_Player.Count <= 0){
-                DEBUG.Info.Print("啊哦,没有客户端连接当前客户端为零");
+                Console.Write("啊哦,没有客户端连接当前客户端为零");
                 return;
             }
-            DEBUG.Info.Print($"服务端正在向{Online_Player.Count}个已连接的客户端发送信息:{Text}");
+            Console.Write($"服务端正在向{Online_Player.Count}个已连接的客户端发送信息:{Text}");
             foreach (TcpClient tcp in Online_Player){
                 NetworkStream network = tcp.GetStream();
                 await network.WriteAsync(Encoding.UTF8.GetBytes(Text));
@@ -264,7 +290,7 @@ public static class Server
         }
         catch(Exception EX)
         {
-            DEBUG.Info.Print(EX.Message);
+            Console.Write(EX.Message);
         }
         finally
         {
@@ -279,32 +305,41 @@ public static class Server
     {
         Online_Player.Add(Player);
         NetworkStream PlayerStream = null;
+        string str = "";
         try{
             PlayerStream = Player.GetStream();
             while (TCPServer != null)
             {
                 byte[] Buffer = new byte[1024];
                 int Len = await PlayerStream.ReadAsync(Buffer,0,Buffer.Length);
-                string str = Encoding.UTF8.GetString(Buffer,0,Len);
-                GetPlayer_Stream.Invoke(str);
+                str = Encoding.UTF8.GetString(Buffer,0,Len);
+                try{
+                    GetPlayer_Stream.Invoke(str);
+                }catch(Exception EX)
+                {
+                    Console.Write($"方法调用错误 错误信息:{EX.Message}");
+                }finally{}
+
                 Data_Stream += str;
-                DEBUG.Info.Print("服务端已接收:",str);
+                Console.Write("服务端已接收:",str);
+                if (str == "<<Exit>>")
+                {
+                    break;
+                }
                 Currend_Data.Add(str);
             }
         }
         catch(Exception EX)
         {
-            if (EX.ToString().Find("ystem.Net.Sockets.SocketException") != -1)
-            {
-                DEBUG.Info.Print("一个客户端已断开连接");
-            }
-            else
-            {
-                DEBUG.Info.Print(EX);
-            }
+            Console.Write("一个客户端已断开连接");
+            Console.Write(EX);
         }
         finally
         {
+            if (str == "<<Exit>>")
+            {
+                Console.Write("客户端主动退出");
+            }
             PlayerStream.Close();
             Player.Close();
             lock (Online_Player)
