@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -12,6 +13,14 @@ namespace NETDNS;
 /// </summary>
 public static class Server
 {
+    /// <summary>
+    /// 客户端流信息
+    /// </summary>
+    public static Action<String> GetPlayer_Stream;
+    /// <summary>
+    /// 服务器流信息
+    /// </summary>
+    public static Action<String> GetServer_Stream;
     /// <summary>
     /// 数据流
     /// </summary>
@@ -172,6 +181,7 @@ public static class Server
                     DEBUG.Info.Print("正在断开链接");
                     break;
                 }
+                GetServer_Stream.Invoke(str);
                 DEBUG.Info.Print("客户端已接收:",str);
                 await Task.Delay(100);
             }
@@ -276,6 +286,7 @@ public static class Server
                 byte[] Buffer = new byte[1024];
                 int Len = await PlayerStream.ReadAsync(Buffer,0,Buffer.Length);
                 string str = Encoding.UTF8.GetString(Buffer,0,Len);
+                GetPlayer_Stream.Invoke(str);
                 Data_Stream += str;
                 DEBUG.Info.Print("服务端已接收:",str);
                 Currend_Data.Add(str);
