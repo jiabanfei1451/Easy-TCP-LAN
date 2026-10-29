@@ -32,6 +32,10 @@ public static class Server
     /// </summary>
     public static ushort Port = 7777;
     /// <summary>
+    /// 校验数据流
+    /// </summary>
+    public static String Check_character = "Easy-TCP-LAN";
+    /// <summary>
     /// TCP服务器
     /// </summary>
     public static TcpListener TCPServer;
@@ -52,13 +56,17 @@ public static class Server
     /// </summary>
     public static List<string> Currend_Data = new List<string>();
     /// <summary>
+    /// 最大校验次数
+    /// </summary>
+    public static byte Max_Cheak_Number = 3;
+    /// <summary>
     /// 创建服务器
     /// </summary>
     public static async void Create_Server()
     {
         if (!(TCPServer is null))
         {
-            Console.Write("当前服务器已被创建,请使用其他端口");
+            NETDNS.Info.Print("当前服务器已被创建,请使用其他端口");
             return;
         }
         IPAddress iPAddress = IPAddress.Parse(IPs);
@@ -68,7 +76,7 @@ public static class Server
         {
             Tcp_Server.Start();
             TCPServer = Tcp_Server;
-            Console.Write("服务端已创建");
+            NETDNS.Info.Print("服务端已创建");
             while (true)
             {
                 TcpClient Player = await TCPServer.AcceptTcpClientAsync();
@@ -79,7 +87,7 @@ public static class Server
         }
         catch(Exception EX)
         {
-            Console.Write(EX.Message);
+            NETDNS.Info.Print(EX.Message);
         }
         finally
         {
@@ -87,13 +95,13 @@ public static class Server
                 Server_Stream.Close();
             }catch(Exception EX)
             {
-                Console.Write($"关闭时出现错误 错误信息:{EX.Message}");
+                NETDNS.Info.Print($"关闭时出现错误 错误信息:{EX.Message}");
             }
             finally
             {
             }
             Server_Stream = null;
-            Console.Write("服务器已关闭");
+            NETDNS.Info.Print("服务器已关闭");
         }
     }
     /// <summary>
@@ -113,7 +121,7 @@ public static class Server
         }
         catch(SocketException ex)
         {
-            Console.Write("计算机端口检测失败 错误信息:",ex);
+            NETDNS.Info.Print("计算机端口检测失败 错误信息:",ex);
             h = true;
         }
         finally
@@ -156,7 +164,7 @@ public static class Server
     {
         if (!(Server_Stream is null))
         {
-            Console.Write($"当前进程已连接{IPs}:{Port},请勿重复连接");
+            NETDNS.Info.Print($"当前进程已连接{IPs}:{Port},请勿重复连接");
             return;
         }
         try
@@ -176,16 +184,16 @@ public static class Server
         }
         if (TCPServer != null)
         {
-            Console.Write("当前为服务端!");
+            NETDNS.Info.Print("当前为服务端!");
         }else{
         Client = new TcpClient();
-        Console.Write("正在加入游戏...");
+        NETDNS.Info.Print("正在加入游戏...");
         try
         {
             await Client.ConnectAsync(IPs,Port);
-            Console.Write($"已成功加入游戏IP{IPs}");
+            NETDNS.Info.Print($"已成功加入游戏IP{IPs}");
             Server_Stream = Client.GetStream();
-
+            Player_Send_Data(Check_character);
             while (Server_Stream != null){
                 byte[] Buffer = new byte[1024];
                 var s = await Server_Stream.ReadAsync(Buffer,0,Buffer.Length);
@@ -193,23 +201,23 @@ public static class Server
                 Data_Stream += str;
                 if( str == "")
                 {
-                    Console.Write("正在断开链接");
+                    NETDNS.Info.Print("正在断开链接");
                     break;
                 }
                 try{
                     GetServer_Stream.Invoke(str);
                 }catch(Exception EX)
                 {
-                    Console.Write($"方法调用错误 错误信息:{EX.Message}");
+                    NETDNS.Info.Print($"方法调用错误 错误信息:{EX.Message}");
                 }finally{}
-                Console.Write("客户端已接收:",str);
+                NETDNS.Info.Print("客户端已接收:" + str);
                 await Task.Delay(100);
             }
         }
         catch(Exception EX)
         {
-            Console.Write(EX.Message);
-            Console.Write(IPs,Port);
+            NETDNS.Info.Print(EX.Message);
+            NETDNS.Info.Print(IPs,Port);
         }
         finally
         {
@@ -221,7 +229,7 @@ public static class Server
             Server_Stream.Close();
             }
             Server_Stream = null;
-            Console.Write("结束");
+            NETDNS.Info.Print("结束");
         }
         }
         Data_Stream = "";
@@ -234,7 +242,7 @@ public static class Server
     {
         if (Client != null)
         {
-            Console.Write("退出中");
+            NETDNS.Info.Print("退出中");
             Player_Send_Data("<<Exit>>");
             Server_Stream.Close();
             Server_Stream = null;
@@ -243,7 +251,7 @@ public static class Server
         }
         else
         {
-            Console.Write("当前没有正在连接的服务器流");
+            NETDNS.Info.Print("当前没有正在连接的服务器流");
         }
     }
     /// <summary>
@@ -254,7 +262,7 @@ public static class Server
     {
         if (TCPServer != null)
         {
-            Console.Write("当前为服务端");
+            NETDNS.Info.Print("当前为服务端");
             return;
         }
         try
@@ -263,7 +271,7 @@ public static class Server
             Server_Stream.Write(Encoding.UTF8.GetBytes(Text));
         }catch(Exception EX)
         {
-            Console.Write(EX.Message);
+            NETDNS.Info.Print(EX.Message);
         }
         finally
         {
@@ -279,10 +287,10 @@ public static class Server
         try{
             if (Server_Stream == null){return;}
             if (Online_Player.Count <= 0){
-                Console.Write("啊哦,没有客户端连接当前客户端为零");
+                NETDNS.Info.Print("啊哦,没有客户端连接当前客户端为零");
                 return;
             }
-            Console.Write($"服务端正在向{Online_Player.Count}个已连接的客户端发送信息:{Text}");
+            NETDNS.Info.Print($"服务端正在向{Online_Player.Count}个已连接的客户端发送信息:{Text}");
             foreach (TcpClient tcp in Online_Player){
                 NetworkStream network = tcp.GetStream();
                 await network.WriteAsync(Encoding.UTF8.GetBytes(Text));
@@ -290,7 +298,7 @@ public static class Server
         }
         catch(Exception EX)
         {
-            Console.Write(EX.Message);
+            NETDNS.Info.Print(EX.Message);
         }
         finally
         {
@@ -304,42 +312,78 @@ public static class Server
     static async void Handle_Player(TcpClient Player)
     {
         Online_Player.Add(Player);
+        IPEndPoint iPEnd = Player.GetStream().Socket.RemoteEndPoint as IPEndPoint;
+        if (!(iPEnd is null)){
+            NETDNS.Info.Print($"客户端:{iPEnd.Address}");
+        }
         NetworkStream PlayerStream = null;
         string str = "";
+        bool through = false;
+        byte Cheak_Number = 0;
         try{
             PlayerStream = Player.GetStream();
+
             while (TCPServer != null)
             {
                 byte[] Buffer = new byte[1024];
                 int Len = await PlayerStream.ReadAsync(Buffer,0,Buffer.Length);
                 str = Encoding.UTF8.GetString(Buffer,0,Len);
-                try{
-                    GetPlayer_Stream.Invoke(str);
-                }catch(Exception EX)
-                {
-                    Console.Write($"方法调用错误 错误信息:{EX.Message}");
-                }finally{}
+                NETDNS.Info.Print("服务端已接收:" + str);
+                if (through == false){
+                    if (str == Check_character)
+                    {
+                        Player.GetStream().Write(Encoding.UTF8.GetBytes("校验已通过"));
+                        through = true;
+                    }
+                    else
+                    {
+                        Cheak_Number += 1;
+                        if (Cheak_Number > Max_Cheak_Number)
+                        {
+                            break;
+                        }
+                    }
+                }else{
+                    try{
+                        GetPlayer_Stream.Invoke(str);
+                    }catch(Exception EX)
+                    {
+                        NETDNS.Info.Print($"方法调用错误 错误信息:{EX.Message}");
+                    }finally{}
 
-                Data_Stream += str;
-                Console.Write("服务端已接收:",str);
-                if (str == "<<Exit>>")
-                {
-                    break;
+                    Data_Stream += str;
+                    PlayerStream.Write(Encoding.UTF8.GetBytes($"服务端已接收完成校验信息:{str}"));
+                    if (str == "<<Exit>>")
+                    {
+                        break;
+                    }
+                    PlayerStream.Flush();
+                    Currend_Data.Add(str);
                 }
-                Currend_Data.Add(str);
+                
             }
         }
         catch(Exception EX)
         {
-            Console.Write("一个客户端已断开连接");
-            Console.Write(EX);
+            NETDNS.Info.Print("一个客户端已断开连接");
+            NETDNS.Info.Print(EX);
         }
         finally
         {
+            if (through == false)
+            {
+                NETDNS.Info.Print("校验不通过已主动断开连接");
+            }
             if (str == "<<Exit>>")
             {
-                Console.Write("客户端主动退出");
+                NETDNS.Info.Print("客户端主动退出");
             }
+            else
+            {
+                NETDNS.Info.Print("客户端被迫退出");
+            }
+            PlayerStream.Flush();
+            PlayerStream.Dispose();
             PlayerStream.Close();
             Player.Close();
             lock (Online_Player)
